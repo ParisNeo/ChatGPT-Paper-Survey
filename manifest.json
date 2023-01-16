@@ -1,0 +1,42 @@
+{
+    "manifest_version": 3,
+    "name": "ChatGPT-Paper-Survey",
+    "description": "This extension allows you to perform scientific paper surveys using Google queries and chatGPT, it recovers and organizes the articles, removes irrelevant ones and then gives the abstracts to a language model that summarizes them.",
+    "version": "1.0",
+    "icons": {
+        "16": "icon.png",
+        "32": "icon.png",
+        "48": "icon.png",
+        "128": "icon.png"
+      },
+    "host_permissions": [
+        "https://ddg-webapp-aagd.vercel.app/*"
+    ],
+    "background": {
+        "service_worker": "background.js"
+    },      
+    "content_scripts": [
+    {
+        "matches": [
+            "https://chat.openai.com/*"
+        ],
+        "css": ["style.css"],
+        "js": ["content.js"]
+    }
+    ],
+    "permissions": [
+        "storage",
+        "activeTab"
+    ],
+    
+    "web_accessible_resources": [
+        {
+          "resources": [
+            "regions.json"
+          ],
+          "matches": [
+            "https://chat.openai.com/*"
+          ]
+        }
+      ]    
+}
