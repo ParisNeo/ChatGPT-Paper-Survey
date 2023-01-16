@@ -1,4 +1,3 @@
-let isExtensionActive = true;
 let isProcessing = false;
 var global={
   "num_papers":10,
@@ -26,13 +25,13 @@ function showErrorMessage(e) {
     setTimeout(() => { errorDiv.remove(); }, 5000);
 }
 
-function pasteWebResultsToTextArea(results, query) {
+function conditionChatGPT(results, query) {
     let counter = 1;
-    let formattedResults = `Subject :  ${query}.\n\nArticles web search results:\n\n`;
+    let formattedResults = `Current date: ${new Date().toLocaleDateString()}\n\nSubject :  ${query}.\n\n`;
+    
+    formattedResults = formattedResults + `Instructions: Act as an AI specialized in papers analysis and article generation. The AI knows how to write different text formats such as latex. In addition to natural interaction, the AI can respond to those commands : summerize,mksurvey,showperspectives,critisize,X. Here is the explanation of each command:\n- summerize : Write a brief summary\n- mksurvey : Write a scientific survey (Write at least ${global["num_papers"]} paragraphs)\n- showperspectives : Write a paragraph about the perspectives and future evolutions of the work.\n- critisize : Criticise the subject.\n- latex : write a latex article about the subject\n Make sure to cite results using [[number](URL)] notation after the reference. Be precise and use academic english. Stick to the user requests. The user can formulate requests concerning the articles. respond in a formal manner.\n\nAfter recovering the Articles web search data, just answer with Acknowlege and wait for the user command.`
+    formattedResults = formattedResults + `Articles web search results:\n\n`
     formattedResults = formattedResults + results.reduce((acc, result) => acc += `[${counter++}] "${result.body}"\nSource: ${result.href}\n\n`, "");
-
-    formattedResults = formattedResults + `\nCurrent date: ${new Date().toLocaleDateString()}`;
-    formattedResults = formattedResults + `\nInstructions: Using the provided articles:\n- Write a brief summary\n- Write a scientific survey\n- Write a paragraph about the perspectives and future evolutions of the work. Make sure to cite results using [[number](URL)] notation after the reference. Be precise and use academic english. Dive deeper in each article and try to make a clear picture to the landscape.\n Write at least ${global["num_papers"]} paragraphs.`;
 
     textarea.value = formattedResults;
 }
@@ -49,7 +48,7 @@ function pressEnter() {
 }
 
 async function api_search(query, numResults, contentType, subject_area, start_year, end_year, sort_by) {
-    var url = `https://ddg-webapp-aagd.vercel.app/search?max_results=${numResults}&q=${query}`;
+    var url = `https://ddg-webapp-aagd.vercel.app/search?max_results=${numResults}&q=site:arxiv.org+${query}`;
     if (contentType !== "") {
       url += `&cat=${contentType}`;
     }
@@ -71,39 +70,43 @@ async function api_search(query, numResults, contentType, subject_area, start_ye
 }
 
 
-
+var commands;
 function onSubmit(event) {
-    console.log("On submit triggered");
+    console.log(`On submit triggered with ${commands}`);
     if (event.shiftKey && event.key === 'Enter') {
         console.log("shift detected");
         return;
     }
     chrome.storage.sync.set({ "global": global });
-    console.log(`$isExtensionActive : ${isExtensionActive}`)
-    console.log(`$isProcessing : ${isProcessing}`)
-    console.log(`$event.type : ${event.type}`)
-    console.log(`$event.key : ${event.key}`)
-    if ((event.type === "click" || event.key === 'Enter') && isExtensionActive && !isProcessing) {
+    if ((event.type === "click" || event.key === 'Enter') && !isProcessing) {
         console.log("Processing")
         isProcessing = true;
 
         try {
-            let query = textarea.value;
-            textarea.value = "";
-
-            query = query.trim();
-
-            if (query === "") {
-                isProcessing = false;
-                return;
+            if(commands.value == "")
+            {
+                let query = textarea.value;
+                textarea.value = "";
+    
+                query = query.trim();
+    
+                if (query === "") {
+                    isProcessing = false;
+                    return;
+                }
+    
+                api_search(query, global["num_papers"], global["content_type"], global["subject_area"], global["start_year"], global["end_year"], global["sort_by"])
+                    .then(results => {
+                    conditionChatGPT(results, query);
+                    pressEnter();
+                    isProcessing = false;
+                    });
             }
-
-            api_search(query, global["num_papers"], global["content_type"], global["subject_area"], global["start_year"], global["end_year"], global["sort_by"])
-              .then(results => {
-                pasteWebResultsToTextArea(results, query);
+            else
+            {
+                textarea.value=commands.value;
                 pressEnter();
-                isProcessing = false;
-              });
+            }
         } catch (error) {
             isProcessing = false;
             showErrorMessage(error);
@@ -150,26 +153,32 @@ function updateUI() {
     survey_submit.innerHTML=`<svg stroke="red" fill="red" stroke-width="0" viewBox="0 0 20 20" class="h-4 w-4 rotate-90" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg>`
 
     textareaWrapper.insertBefore(submit_divs, btnSubmit)
-    submit_divs.appendChild(btnSubmit)
+    commands = document.createElement("select");
+    commands.style.color="black";
+    let commands_options_list = [
+        { value: "", label: "Search" },  
+        { value: "summerize", label: "Summary" },  
+        { value: "mksurvey", label: "Survey" },  
+        { value: "showperspectives", label: "Perspectives" },  
+        { value: "critisize", label: "Criticize" },  
+        { value: "latex", label: "Write article" },  
+    ]
+    commands_options_list.forEach(function (option) {
+        var optionElement = document.createElement("option");
+        optionElement.value = option.value;
+        optionElement.innerHTML = option.label;
+        optionElement.classList.add("text-white");
+        commands.appendChild(optionElement);
+        optionElement.style.color="black";
+    });    
+    submit_divs.appendChild(commands);
     submit_divs.appendChild(survey_submit)
+    submit_divs.appendChild(btnSubmit)
     // textarea.addEventListener("keydown", onSubmit);
     survey_submit.addEventListener("click", onSubmit);
 
 
-    // Web access switch
-    var toggleWebAccessDiv = document.createElement("div");
-    toggleWebAccessDiv.innerHTML = '<label class="chatgpt-paper-survey-toggle"><input class="chatgpt-paper-survey-toggle-checkbox" type="checkbox"><div class="chatgpt-paper-survey-toggle-switch"></div><span class="chatgpt-paper-survey-toggle-label">SurveyExtention On</span></label>';
-    toggleWebAccessDiv.classList.add("chatgpt-paper-survey-toggle-web-access");
-    chrome.storage.sync.get("extention_active", (data) => {
-        toggleWebAccessDiv.querySelector(".chatgpt-paper-survey-toggle-checkbox").checked = data.extention_active;
-    });
 
-
-    var checkbox = toggleWebAccessDiv.querySelector(".chatgpt-paper-survey-toggle-checkbox");
-    checkbox.addEventListener("click", () => {
-            isExtensionActive = checkbox.checked;
-            chrome.storage.sync.set({ "extention_active": checkbox.checked });
-        });
 
     var divider = document.createElement("hr");
 
@@ -321,7 +330,6 @@ function updateUI() {
 
 
     optionsDiv.appendChild(title);
-    optionsDiv.appendChild(toggleWebAccessDiv);
     optionsDiv.appendChild(divnumPapersSlider);
     optionsDiv.appendChild(numPapersSlider);
     optionsDiv.appendChild(contentTypeLabel);
