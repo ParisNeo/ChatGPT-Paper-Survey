@@ -1,4 +1,4 @@
-let isExtensoinActive = true;
+let isExtensionActive = true;
 let isProcessing = false;
 var global={
   "num_papers":10,
@@ -17,21 +17,6 @@ chrome.storage.sync.get(["global"], (data) => {
 });
 
 
-function setTitleAndDescription() {
-    const h1_title = document.evaluate("//h1[text()='ChatGPT']", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-    if (!h1_title) {
-        return;
-    }
-
-    h1_title.textContent = "ChatGPT Paper Survey";
-
-    const div = document.createElement("div");
-    div.classList.add("w-full", "bg-gray-50", "dark:bg-white/5", "p-6", "rounded-md", "mb-10", "border");
-    div.textContent = "With ChatGPT Paper Survey you can use ChatGPT to make a scientific paper survey.";
-    h1_title.parentNode.insertBefore(div, h1_title.nextSibling);
-
-}
-
 function showErrorMessage(e) {
     console.log(e);
     var errorDiv = document.createElement("div");
@@ -43,11 +28,11 @@ function showErrorMessage(e) {
 
 function pasteWebResultsToTextArea(results, query) {
     let counter = 1;
-    let formattedResults = "Articles web search results:\n\n";
+    let formattedResults = `Subject :  ${query}.\n\nArticles web search results:\n\n`;
     formattedResults = formattedResults + results.reduce((acc, result) => acc += `[${counter++}] "${result.body}"\nSource: ${result.href}\n\n`, "");
 
     formattedResults = formattedResults + `\nCurrent date: ${new Date().toLocaleDateString()}`;
-    formattedResults = formattedResults + `\nInstructions: Using the provided articles search results, write a scientific survey. Make sure to cite results using [[number](URL)] notation after the reference. Be precise and use academic english. Dive deeper in each article and try to make a clear picture to the landscape. Write at least ${global["num_papers"]} paragraphs.\nSubject :  ${query}`;
+    formattedResults = formattedResults + `\nInstructions: Using the provided articles:\n- Write a brief summary\n- Write a scientific survey\n- Write a paragraph about the perspectives and future evolutions of the work. Make sure to cite results using [[number](URL)] notation after the reference. Be precise and use academic english. Dive deeper in each article and try to make a clear picture to the landscape.\n Write at least ${global["num_papers"]} paragraphs.`;
 
     textarea.value = formattedResults;
 }
@@ -90,11 +75,16 @@ async function api_search(query, numResults, contentType, subject_area, start_ye
 function onSubmit(event) {
     console.log("On submit triggered");
     if (event.shiftKey && event.key === 'Enter') {
+        console.log("shift detected");
         return;
     }
     chrome.storage.sync.set({ "global": global });
-    if ((event.type === "click" || event.key === 'Enter') && isExtensoinActive && !isProcessing) {
-
+    console.log(`$isExtensionActive : ${isExtensionActive}`)
+    console.log(`$isProcessing : ${isProcessing}`)
+    console.log(`$event.type : ${event.type}`)
+    console.log(`$event.key : ${event.key}`)
+    if ((event.type === "click" || event.key === 'Enter') && isExtensionActive && !isProcessing) {
+        console.log("Processing")
         isProcessing = true;
 
         try {
@@ -148,11 +138,22 @@ function updateUI() {
 
     console.log("Updating UI");
 
+   
     textarea = document.querySelector("textarea");
     var textareaWrapper = textarea.parentNode;
-    var btnSubmit = textareaWrapper.querySelector("button");
-    textarea.addEventListener("keydown", onSubmit);
-    btnSubmit.addEventListener("click", onSubmit);
+
+    var submit_divs = document.createElement("div");
+    var buttons = textareaWrapper.querySelectorAll("button");
+    console.log(`Found ${buttons.length} buttons`)
+    var btnSubmit = buttons[buttons.length-1];
+    var survey_submit = document.createElement("button");
+    survey_submit.innerHTML=`<svg stroke="red" fill="red" stroke-width="0" viewBox="0 0 20 20" class="h-4 w-4 rotate-90" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg>`
+
+    textareaWrapper.insertBefore(submit_divs, btnSubmit)
+    submit_divs.appendChild(btnSubmit)
+    submit_divs.appendChild(survey_submit)
+    // textarea.addEventListener("keydown", onSubmit);
+    survey_submit.addEventListener("click", onSubmit);
 
 
     // Web access switch
@@ -166,7 +167,7 @@ function updateUI() {
 
     var checkbox = toggleWebAccessDiv.querySelector(".chatgpt-paper-survey-toggle-checkbox");
     checkbox.addEventListener("click", () => {
-            isExtensoinActive = checkbox.checked;
+            isExtensionActive = checkbox.checked;
             chrome.storage.sync.set({ "extention_active": checkbox.checked });
         });
 
@@ -174,6 +175,9 @@ function updateUI() {
 
     var optionsDiv = document.createElement("div");
     optionsDiv.classList.add("chatgpt-paper-survey-options", "p-4", "space-y-2");
+    optionsDiv.style.maxHeight = "200px";
+    optionsDiv.style.overflowY = "scroll";
+  
 
     var title = document.createElement("h4");
     title.innerHTML = "ChatGPT Paper Survey Options";
@@ -199,7 +203,7 @@ function updateUI() {
     numPapersSlider.max = 10;
     numPapersSlider.step = 1;
     chrome.storage.sync.get("global", (data) => {
-        numPapersSlider.value = num_papers;
+        numPapersSlider.value = global["num_papers"];
     });
     numPapersSlider.classList.add("w-full");
 
@@ -317,6 +321,7 @@ function updateUI() {
 
 
     optionsDiv.appendChild(title);
+    optionsDiv.appendChild(toggleWebAccessDiv);
     optionsDiv.appendChild(divnumPapersSlider);
     optionsDiv.appendChild(numPapersSlider);
     optionsDiv.appendChild(contentTypeLabel);
@@ -330,7 +335,6 @@ function updateUI() {
     optionsDiv.appendChild(startYearDiv);
     optionsDiv.appendChild(endYearDiv);
     optionsDiv.appendChild(emptyDiv);
-    optionsDiv.appendChild(toggleWebAccessDiv);
     optionsDiv.appendChild(credits);
 
 
@@ -347,8 +351,7 @@ console.log("Running Chat GPT paper survey code");
 window.onload = function() {
     const titleEl = document.querySelector('title');
     const observer = new MutationObserver(() => {
-        setTitleAndDescription();
-        setTimeout(updateUI, 1000); //updateUI();
+        setTimeout(updateUI, 2000); //updateUI();
     });
 
     observer.observe(titleEl, {
