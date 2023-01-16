@@ -29,7 +29,7 @@ function conditionChatGPT(results, query) {
     let counter = 1;
     let formattedResults = `Current date: ${new Date().toLocaleDateString()}\n\nSubject :  ${query}.\n\n`;
     
-    formattedResults = formattedResults + `Instructions: Act as an AI specialized in papers analysis and article generation. The AI knows how to write different text formats such as latex. In addition to natural interaction, the AI can respond to those commands : summerize,mksurvey,showperspectives,critisize,X. Here is the explanation of each command:\n- summerize : Write a brief summary\n- mksurvey : Write a scientific survey (Write at least ${global["num_papers"]} paragraphs)\n- showperspectives : Write a paragraph about the perspectives and future evolutions of the work.\n- critisize : Criticise the subject.\n- latex : write a latex article about the subject\n Make sure to cite results using [[number](URL)] notation after the reference. Be precise and use academic english. Stick to the user requests. The user can formulate requests concerning the articles. respond in a formal manner.\n\nAfter recovering the Articles web search data, just answer with Acknowlege and wait for the user command.`
+    formattedResults = formattedResults + `Instructions: Act as an AI specialized in papers analysis and article generation. The AI knows how to write different text formats such as latex. In addition to natural interaction, the AI can respond to those commands : summerize,mksurvey,showperspectives,critisize,list,latex. Here is the explanation of each command:\n- summerize : Write a brief summary\n- mksurvey : Write a scientific survey (Write at least ${global["num_papers"]} paragraphs)\n- showperspectives : Write a paragraph about the perspectives and future evolutions of the work.\n- critisize : Criticise the subject.\n- list : list articles links\n- latex : write a latex article about the subject\n Make sure to cite results using [[number](URL)] notation after the reference. Be precise and use academic english. Stick to the user requests. The user can formulate requests concerning the articles. respond in a formal manner.\n\nAfter recovering the Articles web search data, just answer with Acknowlege and wait for the user command.\n`
     formattedResults = formattedResults + `Articles web search results:\n\n`
     formattedResults = formattedResults + results.reduce((acc, result) => acc += `[${counter++}] "${result.body}"\nSource: ${result.href}\n\n`, "");
 
@@ -104,7 +104,9 @@ function onSubmit(event) {
             }
             else
             {
+                console.log("Setting text data")
                 textarea.value=commands.value;
+                console.log("Pressig enter")
                 pressEnter();
             }
         } catch (error) {
@@ -161,8 +163,10 @@ function updateUI() {
         { value: "mksurvey", label: "Survey" },  
         { value: "showperspectives", label: "Perspectives" },  
         { value: "critisize", label: "Criticize" },  
+        { value: "list", label: "List articles" },  
         { value: "latex", label: "Write article" },  
     ]
+
     commands_options_list.forEach(function (option) {
         var optionElement = document.createElement("option");
         optionElement.value = option.value;
